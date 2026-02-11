@@ -1,71 +1,78 @@
-"use client";
+"use client"
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FeedItem } from "@/lib/zora-feed";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import type { FeedItem } from "@/lib/zora-feed"
 
 type Props = {
-  items: FeedItem[];
-};
+  items: FeedItem[]
+}
 
-const MASONRY_GAP_PX = 4; // gap-1
+const MASONRY_GAP_PX = 4 // gap-1
 
 function getColumnCount(containerWidth: number) {
   // 2 cols base, then 3/4/5 at Tailwind sm/lg/2xl breakpoints.
-  if (containerWidth >= 1536) return 5;
-  if (containerWidth >= 1024) return 4;
-  if (containerWidth >= 640) return 3;
-  return 2;
+  if (containerWidth >= 1536) return 5
+  if (containerWidth >= 1024) return 4
+  if (containerWidth >= 640) return 3
+  return 2
 }
 
 function useElementWidth<T extends HTMLElement>() {
-  const ref = useRef<T | null>(null);
-  const [width, setWidth] = useState(0);
+  const ref = useRef<T | null>(null)
+  const [width, setWidth] = useState(0)
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    const el = ref.current
+    if (!el) return
 
     const ro = new ResizeObserver((entries) => {
-      const next = Math.floor(entries[0]?.contentRect?.width ?? 0);
-      setWidth(next);
-    });
-    ro.observe(el);
-    setWidth(Math.floor(el.getBoundingClientRect().width));
-    return () => ro.disconnect();
-  }, []);
+      const next = Math.floor(entries[0]?.contentRect?.width ?? 0)
+      setWidth(next)
+    })
+    ro.observe(el)
+    setWidth(Math.floor(el.getBoundingClientRect().width))
+    return () => ro.disconnect()
+  }, [])
 
-  return { ref, width };
+  return { ref, width }
 }
 
 function useInfiniteScroll(opts: {
-  enabled: boolean;
-  getNext: () => void;
-  rootMargin?: string;
+  enabled: boolean
+  getNext: () => void
+  rootMargin?: string
 }) {
-  const { enabled, getNext, rootMargin = "800px" } = opts;
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const { enabled, getNext, rootMargin = "800px" } = opts
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (!enabled) return;
-    const el = sentinelRef.current;
-    if (!el) return;
+    if (!enabled) return
+    const el = sentinelRef.current
+    if (!el) return
 
     const io = new IntersectionObserver(
       (entries) => {
-        const first = entries[0];
-        if (first?.isIntersecting) getNext();
+        const first = entries[0]
+        if (first?.isIntersecting) getNext()
       },
       { root: null, rootMargin, threshold: 0 }
-    );
+    )
 
-    io.observe(el);
-    return () => io.disconnect();
-  }, [enabled, getNext, rootMargin]);
+    io.observe(el)
+    return () => io.disconnect()
+  }, [enabled, getNext, rootMargin])
 
-  return { sentinelRef };
+  return { sentinelRef }
 }
 
 function MediaTile({
@@ -73,30 +80,33 @@ function MediaTile({
   index,
   ratio,
   onRatio,
+  onOpen,
 }: {
-  item: FeedItem;
-  index: number;
-  ratio: number; // height / width
-  onRatio: (next: number) => void;
+  item: FeedItem
+  index: number
+  ratio: number // height / width
+  onRatio: (next: number) => void
+  onOpen: (item: FeedItem) => void
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const displayUrl = item.mediaPreviewUrl ?? item.mediaUrl;
+  const [loaded, setLoaded] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const displayUrl = item.mediaPreviewUrl ?? item.mediaUrl
 
   // Prioritize the first row (up to 3 columns on desktop) to make loading feel ordered.
-  const eager = index < 3;
+  const eager = index < 3
 
-  const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 4 / 3;
-  // ratio is height/width; CSS aspect-ratio expects width/height.
-  // If ratio = h/w, then width/height = 1/ratio, which is `1 / (h/w)` => `1 / ratio`.
-  // Using `1 / ratio` is equivalent to `1 / safeRatio` => `1 / safeRatio` in CSS form is `1 / safeRatio`.
-  const aspectRatio = `${1} / ${safeRatio}`; // width / height
+  const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 4 / 3
+  const aspectRatio = `${1} / ${safeRatio}` // width / height
 
   return (
-    <div className="group relative bg-muted">
+    <button
+      type="button"
+      className="group relative w-full cursor-pointer bg-muted text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={() => onOpen(item)}
+      aria-label={`Abrir detalhes de ${item.title}`}
+    >
       <div
         className="relative w-full overflow-hidden"
-        // Reserve height even before the image loads; prevents "0px tall" tiles.
         style={{ aspectRatio }}
       >
         {!loaded && !failed ? (
@@ -119,14 +129,14 @@ function MediaTile({
             decoding="async"
             referrerPolicy="no-referrer"
             onLoad={(e) => {
-              setLoaded(true);
-              const img = e.currentTarget;
+              setLoaded(true)
+              const img = e.currentTarget
               if (img.naturalWidth > 0)
-                onRatio(img.naturalHeight / img.naturalWidth);
+                onRatio(img.naturalHeight / img.naturalWidth)
             }}
             onError={() => {
-              setFailed(true);
-              setLoaded(true);
+              setFailed(true)
+              setLoaded(true)
             }}
           />
         ) : (
@@ -139,61 +149,62 @@ function MediaTile({
           {item.creatorHandle ? `@${item.creatorHandle}` : "@"} · {item.title}
         </div>
       </div>
-    </div>
-  );
+    </button>
+  )
 }
 
 function TrueMasonry({
   items,
   getRatio,
   onRatio,
+  onOpen,
 }: {
-  items: FeedItem[];
-  getRatio: (item: FeedItem) => number; // height / width
-  onRatio: (id: string, next: number) => void;
+  items: FeedItem[]
+  getRatio: (item: FeedItem) => number // height / width
+  onRatio: (id: string, next: number) => void
+  onOpen: (item: FeedItem) => void
 }) {
-  const { ref, width } = useElementWidth<HTMLDivElement>();
+  const { ref, width } = useElementWidth<HTMLDivElement>()
 
   const layout = useMemo(() => {
-    const containerWidth = width;
+    const containerWidth = width
     if (!containerWidth) {
-      return { colWidth: 0, height: 0, pos: [] as Array<{ id: string; x: number; y: number; w: number }> };
+      return {
+        colWidth: 0,
+        height: 0,
+        pos: [] as Array<{ id: string; x: number; y: number; w: number }>,
+      }
     }
 
-    const cols = getColumnCount(containerWidth);
-    const colWidth =
-      (containerWidth - MASONRY_GAP_PX * (cols - 1)) / cols;
+    const cols = getColumnCount(containerWidth)
+    const colWidth = (containerWidth - MASONRY_GAP_PX * (cols - 1)) / cols
 
-    const colHeights = new Array(cols).fill(0) as number[];
+    const colHeights = new Array(cols).fill(0) as number[]
     const pos = items.map((item) => {
-      const ratio = getRatio(item);
-      const h = Math.max(40, colWidth * ratio);
+      const ratio = getRatio(item)
+      const h = Math.max(40, colWidth * ratio)
 
-      let col = 0;
+      let col = 0
       for (let i = 1; i < cols; i++) {
-        if (colHeights[i] < colHeights[col]) col = i;
+        if (colHeights[i] < colHeights[col]) col = i
       }
 
-      const x = col * (colWidth + MASONRY_GAP_PX);
-      const y = colHeights[col];
-      colHeights[col] = y + h + MASONRY_GAP_PX;
+      const x = col * (colWidth + MASONRY_GAP_PX)
+      const y = colHeights[col]
+      colHeights[col] = y + h + MASONRY_GAP_PX
 
-      return { id: item.id, x, y, w: colWidth };
-    });
+      return { id: item.id, x, y, w: colWidth }
+    })
 
-    const height = Math.max(...colHeights, 0) - MASONRY_GAP_PX;
-    return { colWidth, height: Math.max(0, height), pos };
-  }, [items, width, getRatio]);
+    const height = Math.max(...colHeights, 0) - MASONRY_GAP_PX
+    return { colWidth, height: Math.max(0, height), pos }
+  }, [items, width, getRatio])
 
   return (
     <div ref={ref} className="w-full px-1">
-      <div
-        data-masonry
-        className="relative"
-        style={{ height: layout.height }}
-      >
+      <div data-masonry className="relative" style={{ height: layout.height }}>
         {items.map((item, idx) => {
-          const p = layout.pos[idx];
+          const p = layout.pos[idx]
           return (
             <div
               key={item.id}
@@ -209,91 +220,121 @@ function TrueMasonry({
                 index={idx}
                 ratio={getRatio(item)}
                 onRatio={(next) => onRatio(item.id, next)}
+                onOpen={onOpen}
               />
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
+  )
+}
+
+function getZoraUrl(item: FeedItem) {
+  const chainNameById: Record<number, string> = {
+    1: "ethereum",
+    8453: "base",
+  }
+  const chain = chainNameById[item.chainId] ?? String(item.chainId)
+  return `https://zora.co/coin/${chain}:${item.coinAddress}`
+}
+
+function formatCreatedAt(createdAt?: string) {
+  if (!createdAt) return null
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return null
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date)
 }
 
 export function FeedClient({ items }: Props) {
-  const [ratios, setRatios] = useState<Record<string, number>>({});
+  const [ratios, setRatios] = useState<Record<string, number>>({})
+  const [selectedItem, setSelectedItem] = useState<FeedItem | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   // This width is used only to decide how many items constitute "3 rows".
-  const { ref: contentRef, width: contentWidth } =
-    useElementWidth<HTMLDivElement>();
+  const { ref: contentRef, width: contentWidth } = useElementWidth<HTMLDivElement>()
 
   const filtered = useMemo(() => {
-    const next = [...items];
+    const next = [...items]
     next.sort((a, b) => {
-      const at = a.createdAt ? Date.parse(a.createdAt) : 0;
-      const bt = b.createdAt ? Date.parse(b.createdAt) : 0;
-      return bt - at;
-    });
-    return next;
-  }, [items]);
+      const at = a.createdAt ? Date.parse(a.createdAt) : 0
+      const bt = b.createdAt ? Date.parse(b.createdAt) : 0
+      return bt - at
+    })
+    return next
+  }, [items])
 
   const cols = useMemo(() => {
-    if (!contentWidth) return 2;
-    return getColumnCount(contentWidth);
-  }, [contentWidth]);
+    if (!contentWidth) return 2
+    return getColumnCount(contentWidth)
+  }, [contentWidth])
 
-  const pageSize = useMemo(() => cols * 3, [cols]);
-  const [visibleCount, setVisibleCount] = useState<number>(pageSize);
+  const pageSize = useMemo(() => cols * 3, [cols])
+  const [visibleCount, setVisibleCount] = useState<number>(pageSize)
 
   // Keep the current progress when resizing, but never show fewer than one page.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setVisibleCount((prev) => Math.max(pageSize, prev));
-  }, [pageSize]);
+    setVisibleCount((prev) => Math.max(pageSize, prev))
+  }, [pageSize])
 
   const getRatio = useCallback(
     (item: FeedItem) => {
-      const r = ratios[item.id];
-      if (typeof r === "number" && Number.isFinite(r) && r > 0) return r;
+      const r = ratios[item.id]
+      if (typeof r === "number" && Number.isFinite(r) && r > 0) return r
       if (
         item.mediaWidth &&
         item.mediaHeight &&
         item.mediaWidth > 0 &&
         item.mediaHeight > 0
       ) {
-        return item.mediaHeight / item.mediaWidth;
+        return item.mediaHeight / item.mediaWidth
       }
-      return 4 / 3;
+      return 4 / 3
     },
     [ratios]
-  );
+  )
 
   const onRatio = useCallback((id: string, next: number) => {
-    if (!Number.isFinite(next) || next <= 0) return;
-    setRatios((prev) => (prev[id] === next ? prev : { ...prev, [id]: next }));
-  }, []);
+    if (!Number.isFinite(next) || next <= 0) return
+    setRatios((prev) => (prev[id] === next ? prev : { ...prev, [id]: next }))
+  }, [])
 
   const page = useMemo(
     () => filtered.slice(0, Math.min(filtered.length, visibleCount)),
     [filtered, visibleCount]
-  );
+  )
 
-  const loadingMoreRef = useRef(false);
+  const loadingMoreRef = useRef(false)
   const getNext = useCallback(() => {
-    if (loadingMoreRef.current) return;
-    if (visibleCount >= filtered.length) return;
-    loadingMoreRef.current = true;
+    if (loadingMoreRef.current) return
+    if (visibleCount >= filtered.length) return
+    loadingMoreRef.current = true
     // Batch by 3 rows.
-    setVisibleCount((c) => Math.min(filtered.length, c + pageSize));
+    setVisibleCount((c) => Math.min(filtered.length, c + pageSize))
     // Allow further triggers next tick.
     queueMicrotask(() => {
-      loadingMoreRef.current = false;
-    });
-  }, [filtered.length, pageSize, visibleCount]);
+      loadingMoreRef.current = false
+    })
+  }, [filtered.length, pageSize, visibleCount])
 
   const { sentinelRef } = useInfiniteScroll({
     enabled: filtered.length > 0 && visibleCount < filtered.length,
     getNext,
     rootMargin: "1200px",
-  });
+  })
+
+  const createdAtLabel = formatCreatedAt(selectedItem?.createdAt)
+  const modalImageUrl = selectedItem?.mediaPreviewUrl ?? selectedItem?.mediaUrl
+  const isVideo = Boolean(selectedItem?.mediaMimeType?.startsWith("video/"))
+  const description =
+    selectedItem?.description.trim() && selectedItem.description.trim().length > 0
+      ? selectedItem.description
+      : "Sem descricao."
 
   return (
     <div className="min-h-screen">
@@ -308,13 +349,10 @@ export function FeedClient({ items }: Props) {
             </a>
           </div>
 
-          <div className="flex items-center justify-end">
-            <Button variant="secondary">Connect Wallet</Button>
-          </div>
+          <div className="flex items-center justify-end" />
         </div>
       </header>
 
-      {/* Full-bleed content: no max-width here, only the nav is constrained. */}
       <div className="w-full">
         <main className="mt-4">
           {filtered.length === 0 ? (
@@ -327,7 +365,15 @@ export function FeedClient({ items }: Props) {
             </div>
           ) : (
             <div ref={contentRef}>
-              <TrueMasonry items={page} getRatio={getRatio} onRatio={onRatio} />
+              <TrueMasonry
+                items={page}
+                getRatio={getRatio}
+                onRatio={onRatio}
+                onOpen={(item) => {
+                  setSelectedItem(item)
+                  setDialogOpen(true)
+                }}
+              />
               <div ref={sentinelRef} className="h-10" />
               <div className="px-3 pb-6 text-xs text-muted-foreground sm:px-4">
                 Showing {page.length} / {filtered.length}
@@ -347,6 +393,86 @@ export function FeedClient({ items }: Props) {
           </div>
         </footer>
       </div>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setSelectedItem(null)
+        }}
+      >
+        <DialogContent className="h-dvh max-h-dvh w-screen max-w-none overflow-y-auto p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-4xl sm:p-6">
+          {selectedItem ? (
+            <div className="grid gap-4 p-4 sm:grid-cols-2 sm:gap-6 sm:p-0">
+              <div className="overflow-hidden">
+                <div className="relative aspect-square w-full">
+                  {isVideo && selectedItem.mediaUrl ? (
+                    <video
+                      className="absolute inset-0 h-full w-full object-contain"
+                      src={selectedItem.mediaUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                    />
+                  ) : modalImageUrl ? (
+                    <img
+                      className="absolute inset-0 h-full w-full object-contain"
+                      src={modalImageUrl}
+                      alt={selectedItem.title}
+                      width={selectedItem.mediaWidth}
+                      height={selectedItem.mediaHeight}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center text-xs text-muted-foreground">
+                      Midia indisponivel
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex min-h-0 flex-col gap-4">
+                <DialogHeader>
+                  <DialogTitle>{selectedItem.title}</DialogTitle>
+                  <DialogDescription>
+                    por{" "}
+                    {selectedItem.creatorHandle
+                      ? `@${selectedItem.creatorHandle}`
+                      : "artista desconhecido"}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-2 text-sm">
+                  <p className="text-muted-foreground">{description}</p>
+                  <div className="text-xs text-muted-foreground">
+                    <span>{selectedItem.symbol}</span>
+                    {createdAtLabel ? <span> · {createdAtLabel}</span> : null}
+                  </div>
+                </div>
+
+                <div className="mt-auto flex flex-wrap items-center gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <a href={getZoraUrl(selectedItem)} target="_blank" rel="noreferrer">
+                      Abrir no Zora
+                    </a>
+                  </Button>
+                  {selectedItem.mediaUrl ? (
+                    <Button asChild variant="outline" size="sm">
+                      <a
+                        href={selectedItem.mediaUrl}
+                        download
+                        target="_blank"
+                        rel="noreferrer noopener"
+                      >
+                        Download media
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
-  );
+  )
 }
