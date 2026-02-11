@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getArtistFeed } from "@/lib/zora-feed";
+import { getArtistFeedPage } from "@/lib/zora-feed";
 import { FeedClient } from "@/app/feed-client";
 
 type PageProps = {
@@ -25,7 +25,9 @@ export default async function ArtistPage({ params }: PageProps) {
   const raw = p.handle;
   const handle = raw.replace(/^@+/, "");
 
-  const { profile, items, failed } = await getArtistFeed(handle);
+  const PAGE_SIZE = 18;
+  const { profile, items, failed, nextCursor, hasNextPage } =
+    await getArtistFeedPage(handle, undefined, PAGE_SIZE);
   if (!profile && !failed) return notFound();
   if (!profile && failed) {
     return (
@@ -151,6 +153,16 @@ export default async function ArtistPage({ params }: PageProps) {
   );
 
   return (
-    <FeedClient items={items} topSlot={banner} pageSize={18} />
+    <FeedClient
+      items={items}
+      topSlot={banner}
+      pageSize={18}
+      remotePagination={{
+        endpoint: `/api/artist/${encodeURIComponent(artist.handle)}/works`,
+        initialCursor: nextCursor,
+        initialHasNextPage: hasNextPage,
+        count: PAGE_SIZE,
+      }}
+    />
   );
 }

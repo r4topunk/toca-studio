@@ -151,158 +151,136 @@ export type ArtistProfile = {
   };
 };
 
-export const getArtistFeed = cache(async (rawHandle: string) => {
-  const handle = rawHandle.replace(/^@+/, "");
+const withTimeout = async <T,>(p: Promise<T>, ms: number) => {
+  return await Promise.race([
+    p,
+    new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
+  ]);
+};
 
-  const withTimeout = async <T,>(p: Promise<T>, ms: number) => {
-    return await Promise.race([
-      p,
-      new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
-    ]);
+const mapCoinToItem = async (coin: {
+  id: string;
+  address: string;
+  chainId: number;
+  createdAt?: string;
+  name: string;
+  description: string;
+  symbol: string;
+  tokenUri?: string;
+  creatorProfile?: {
+    handle?: string;
+    avatar?: { previewImage?: { small?: string } };
   };
+  mediaContent?: unknown;
+}) => {
+  const tokenUri = coin.tokenUri ? toHttpUrl(coin.tokenUri) : undefined;
 
-  let profile: ArtistProfile | null = null;
-  let items: FeedItem[] = [];
-  let failed = false;
+  let mediaUrl: string | undefined;
+  let mediaPreviewUrl: string | undefined;
+  let mediaMimeType: string | undefined;
 
-  const mapCoinToItem = async (coin: {
-    id: string;
-    address: string;
-    chainId: number;
-    createdAt?: string;
-    name: string;
-    description: string;
-    symbol: string;
-    tokenUri?: string;
-    creatorProfile?: {
-      handle?: string;
-      avatar?: { previewImage?: { small?: string } };
-    };
-    mediaContent?: unknown;
-  }) => {
-    const tokenUri = coin.tokenUri ? toHttpUrl(coin.tokenUri) : undefined;
-
-    let mediaUrl: string | undefined;
-    let mediaPreviewUrl: string | undefined;
-    let mediaMimeType: string | undefined;
-
-    const mc = coin.mediaContent as
-      | {
-          mimeType?: string;
-          originalUri?: string;
-          previewImage?: { medium?: string; small?: string };
-        }
-      | undefined;
-
-    if (mc?.mimeType) mediaMimeType = mc.mimeType;
-
-    if (mc?.mimeType?.startsWith("image/")) {
-      mediaPreviewUrl = mc.previewImage?.medium ?? mc.previewImage?.small;
-      mediaUrl = mediaPreviewUrl;
-      if (!mediaUrl && mc.originalUri) mediaUrl = toHttpUrl(mc.originalUri);
-    } else if (mc?.mimeType?.startsWith("video/")) {
-      mediaPreviewUrl = mc.previewImage?.medium ?? mc.previewImage?.small;
-      if (mc.originalUri) mediaUrl = toHttpUrl(mc.originalUri);
-    } else if (tokenUri) {
-      try {
-        const res = await withTimeout(
-          fetch(tokenUri, { next: { revalidate: 60 } }),
-          1200
-        );
-        if (res.ok) {
-          const json: unknown = await res.json();
-          const obj =
-            json && typeof json === "object"
-              ? (json as Record<string, unknown>)
-              : {};
-          const image = typeof obj.image === "string" ? obj.image : undefined;
-          const animationUrl =
-            typeof obj.animation_url === "string"
-              ? obj.animation_url
-              : undefined;
-          mediaPreviewUrl = image ? toHttpUrl(image) : undefined;
-          const candidate = animationUrl ?? image;
-          if (candidate) mediaUrl = toHttpUrl(candidate);
-        }
-      } catch {
-        // Ignore.
+  const mc = coin.mediaContent as
+    | {
+        mimeType?: string;
+        originalUri?: string;
+        previewImage?: { medium?: string; small?: string };
       }
+    | undefined;
+
+  if (mc?.mimeType) mediaMimeType = mc.mimeType;
+
+  if (mc?.mimeType?.startsWith("image/")) {
+    mediaPreviewUrl = mc.previewImage?.medium ?? mc.previewImage?.small;
+    mediaUrl = mediaPreviewUrl;
+    if (!mediaUrl && mc.originalUri) mediaUrl = toHttpUrl(mc.originalUri);
+  } else if (mc?.mimeType?.startsWith("video/")) {
+    mediaPreviewUrl = mc.previewImage?.medium ?? mc.previewImage?.small;
+    if (mc.originalUri) mediaUrl = toHttpUrl(mc.originalUri);
+  } else if (tokenUri) {
+    try {
+      const res = await withTimeout(fetch(tokenUri, { next: { revalidate: 60 } }), 1200);
+      if (res.ok) {
+        const json: unknown = await res.json();
+        const obj =
+          json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+        const image = typeof obj.image === "string" ? obj.image : undefined;
+        const animationUrl =
+          typeof obj.animation_url === "string" ? obj.animation_url : undefined;
+        mediaPreviewUrl = image ? toHttpUrl(image) : undefined;
+        const candidate = animationUrl ?? image;
+        if (candidate) mediaUrl = toHttpUrl(candidate);
+      }
+    } catch {
+      // Ignore.
     }
+  }
 
-    return {
-      id: coin.id,
-      coinAddress: coin.address,
-      chainId: coin.chainId,
-      createdAt: coin.createdAt,
-      title: coin.name,
-      description: coin.description,
-      symbol: coin.symbol,
-      creatorHandle: coin.creatorProfile?.handle,
-      creatorAvatarUrl: coin.creatorProfile?.avatar?.previewImage?.small,
-      tokenUri,
-      mediaUrl,
-      mediaPreviewUrl,
-      mediaMimeType,
-    } satisfies FeedItem;
-  };
+  return {
+    id: coin.id,
+    coinAddress: coin.address,
+    chainId: coin.chainId,
+    createdAt: coin.createdAt,
+    title: coin.name,
+    description: coin.description,
+    symbol: coin.symbol,
+    creatorHandle: coin.creatorProfile?.handle,
+    creatorAvatarUrl: coin.creatorProfile?.avatar?.previewImage?.small,
+    tokenUri,
+    mediaUrl,
+    mediaPreviewUrl,
+    mediaMimeType,
+  } satisfies FeedItem;
+};
 
-  try {
-    const PAGE_SIZE = 50;
-    const MAX_PAGES = 80;
-    const allCoins: Array<Parameters<typeof mapCoinToItem>[0]> = [];
-    let after: string | undefined;
+export const getArtistFeedPage = cache(
+  async (rawHandle: string, after?: string, count = 18) => {
+    const handle = rawHandle.replace(/^@+/, "");
+    let failed = false;
+    let profile: ArtistProfile | null = null;
+    let items: FeedItem[] = [];
+    let nextCursor: string | undefined;
+    let hasNextPage = false;
 
-    for (let page = 0; page < MAX_PAGES; page += 1) {
+    try {
       const r = await withTimeout(
-        getProfileCoins({ identifier: handle, count: PAGE_SIZE, after }),
+        getProfileCoins({ identifier: handle, count, after }),
         5000
       );
       const err = "error" in r ? r.error : undefined;
       if (err) {
         failed = true;
-        break;
+      } else {
+        const data = "data" in r ? r.data : undefined;
+        const p = data?.profile;
+        if (p?.handle) {
+          profile = {
+            handle: p.handle,
+            avatarUrl: p.avatar?.previewImage?.small ?? undefined,
+            social: {
+              twitter: p.socialAccounts?.twitter?.username,
+              instagram: p.socialAccounts?.instagram?.username,
+              farcaster: p.socialAccounts?.farcaster?.username,
+              tiktok: p.socialAccounts?.tiktok?.username,
+            },
+          } satisfies ArtistProfile;
+        }
+
+        const created = p?.createdCoins;
+        const coins = created?.edges?.map((e) => e.node) ?? [];
+        items = await Promise.all(coins.map(mapCoinToItem));
+        items.sort((a, b) => {
+          const at = a.createdAt ? Date.parse(a.createdAt) : 0;
+          const bt = b.createdAt ? Date.parse(b.createdAt) : 0;
+          return bt - at;
+        });
+
+        nextCursor = created?.pageInfo?.endCursor;
+        hasNextPage = Boolean(created?.pageInfo?.hasNextPage && nextCursor);
       }
-
-      const data = "data" in r ? r.data : undefined;
-      const p = data?.profile;
-
-      if (!profile && p?.handle) {
-        profile = {
-          handle: p.handle,
-          avatarUrl: p.avatar?.previewImage?.small ?? undefined,
-          social: {
-            twitter: p.socialAccounts?.twitter?.username,
-            instagram: p.socialAccounts?.instagram?.username,
-            farcaster: p.socialAccounts?.farcaster?.username,
-            tiktok: p.socialAccounts?.tiktok?.username,
-          },
-        } satisfies ArtistProfile;
-      }
-
-      const created = p?.createdCoins;
-      const edges = created?.edges ?? [];
-      allCoins.push(...edges.map((e) => e.node));
-
-      const nextCursor = created?.pageInfo?.endCursor;
-      const hasNext = Boolean(created?.pageInfo?.hasNextPage && nextCursor);
-      if (!hasNext) break;
-      after = nextCursor;
+    } catch {
+      failed = true;
     }
 
-    items = await Promise.all(allCoins.map(mapCoinToItem));
-    items.sort((a, b) => {
-      const at = a.createdAt ? Date.parse(a.createdAt) : 0;
-      const bt = b.createdAt ? Date.parse(b.createdAt) : 0;
-      return bt - at;
-    });
-  } catch {
-    // Swallow to keep route resilient
-    failed = true;
+    return { profile, items, failed, nextCursor, hasNextPage };
   }
-
-  return { profile, items, failed } as {
-    profile: ArtistProfile | null;
-    items: FeedItem[];
-    failed: boolean;
-  };
-});
+);

@@ -20,6 +20,12 @@ type Props = {
   topSlot?: ReactNode
   showFooter?: boolean
   pageSize?: number
+  remotePagination?: {
+    endpoint: string
+    initialCursor?: string
+    initialHasNextPage: boolean
+    count: number
+  }
 }
 
 const MASONRY_GAP_PX = 4 // gap-1
@@ -278,7 +284,16 @@ export function FeedClient({
   topSlot,
   showFooter = true,
   pageSize: fixedPageSize,
+  remotePagination,
 }: Props) {
+  const [loadedItems, setLoadedItems] = useState<FeedItem[]>(items)
+  const [nextCursor, setNextCursor] = useState<string | undefined>(
+    remotePagination?.initialCursor
+  )
+  const [hasRemoteMore, setHasRemoteMore] = useState(
+    remotePagination?.initialHasNextPage ?? false
+  )
+  const [remoteLoading, setRemoteLoading] = useState(false)
   const [ratios, setRatios] = useState<Record<string, number>>({})
   const [selectedItem, setSelectedItem] = useState<FeedItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -287,14 +302,15 @@ export function FeedClient({
   const { ref: contentRef, width: contentWidth } = useElementWidth<HTMLDivElement>()
 
   const filtered = useMemo(() => {
-    const next = [...items]
+    const source = remotePagination ? loadedItems : items
+    const next = [...source]
     next.sort((a, b) => {
       const at = a.createdAt ? Date.parse(a.createdAt) : 0
       const bt = b.createdAt ? Date.parse(b.createdAt) : 0
       return bt - at
     })
     return next
-  }, [items])
+  }, [items, loadedItems, remotePagination])
 
   const cols = useMemo(() => {
     if (!contentWidth) return 2
@@ -336,12 +352,49 @@ export function FeedClient({
   }, [])
 
   const page = useMemo(
-    () => filtered.slice(0, Math.min(filtered.length, visibleCount)),
-    [filtered, visibleCount]
+    () =>
+      remotePagination
+        ? filtered
+        : filtered.slice(0, Math.min(filtered.length, visibleCount)),
+    [filtered, remotePagination, visibleCount]
   )
 
   const loadingMoreRef = useRef(false)
   const getNext = useCallback(() => {
+    if (remotePagination) {
+      if (remoteLoading || !hasRemoteMore) return
+      const qs = new URLSearchParams()
+      qs.set("count", String(remotePagination.count))
+      if (nextCursor) qs.set("after", nextCursor)
+
+      setRemoteLoading(true)
+      fetch(`${remotePagination.endpoint}?${qs.toString()}`)
+        .then(async (res) => {
+          if (!res.ok) return null
+          return (await res.json()) as {
+            items?: FeedItem[]
+            nextCursor?: string
+            hasNextPage?: boolean
+          }
+        })
+        .then((json) => {
+          if (!json) return
+          const incoming = json.items ?? []
+          if (incoming.length > 0) {
+            setLoadedItems((prev) => {
+              const seen = new Set(prev.map((i) => i.id))
+              const deduped = incoming.filter((i) => !seen.has(i.id))
+              return deduped.length > 0 ? [...prev, ...deduped] : prev
+            })
+          }
+          setNextCursor(json.nextCursor)
+          setHasRemoteMore(Boolean(json.hasNextPage && json.nextCursor))
+        })
+        .finally(() => setRemoteLoading(false))
+
+      return
+    }
+
     if (loadingMoreRef.current) return
     if (visibleCount >= filtered.length) return
     loadingMoreRef.current = true
@@ -351,10 +404,20 @@ export function FeedClient({
     queueMicrotask(() => {
       loadingMoreRef.current = false
     })
-  }, [filtered.length, pageSize, visibleCount])
+  }, [
+    filtered.length,
+    hasRemoteMore,
+    nextCursor,
+    pageSize,
+    remoteLoading,
+    remotePagination,
+    visibleCount,
+  ])
 
   const { sentinelRef } = useInfiniteScroll({
-    enabled: filtered.length > 0 && visibleCount < filtered.length,
+    enabled: remotePagination
+      ? filtered.length > 0 && hasRemoteMore
+      : filtered.length > 0 && visibleCount < filtered.length,
     getNext,
     rootMargin: "1200px",
   })
@@ -408,7 +471,9 @@ export function FeedClient({
               />
               <div ref={sentinelRef} className="h-10" />
               <div className="px-3 pb-6 text-xs text-muted-foreground sm:px-4">
-                Showing {page.length} / {filtered.length}
+                {remotePagination
+                  ? `Showing ${page.length}${hasRemoteMore ? " +" : ""}`
+                  : `Showing ${page.length} / ${filtered.length}`}
               </div>
             </div>
           )}
