@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "feed:inspect": "node scripts/feed-inspect-links.mjs",
     "vvv:crawl": "node scripts/vvv-crawl.mjs",
     "vvv:report": "node scripts/vvv-report.mjs"
   },

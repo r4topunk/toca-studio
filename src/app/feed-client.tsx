@@ -81,10 +81,8 @@ function MediaTile({
   onRatio: (next: number) => void;
 }) {
   const [loaded, setLoaded] = useState(false);
-
-  const isVideo =
-    !!item.mediaUrl &&
-    (item.mediaUrl.endsWith(".mp4") || item.mediaUrl.endsWith(".webm"));
+  const [failed, setFailed] = useState(false);
+  const displayUrl = item.mediaPreviewUrl ?? item.mediaUrl;
 
   // Prioritize the first row (up to 3 columns on desktop) to make loading feel ordered.
   const eager = index < 3;
@@ -102,51 +100,36 @@ function MediaTile({
         // Reserve height even before the image loads; prevents "0px tall" tiles.
         style={{ aspectRatio }}
       >
-        {!loaded ? (
+        {!loaded && !failed ? (
           <div className="absolute inset-0 animate-pulse bg-muted" />
         ) : null}
 
-        {item.mediaUrl ? (
-          isVideo ? (
-            <video
-              className={[
-                "absolute inset-0 h-full w-full object-contain",
-                loaded ? "opacity-100" : "opacity-0",
-                "transition-opacity duration-300",
-              ].join(" ")}
-              src={item.mediaUrl}
-              controls
-              playsInline
-              preload={eager ? "auto" : "metadata"}
-              onLoadedMetadata={(e) => {
-                setLoaded(true);
-                const v = e.currentTarget;
-                if (v.videoWidth > 0) onRatio(v.videoHeight / v.videoWidth);
-              }}
-            />
-          ) : (
-            <img
-              className={[
-                "absolute inset-0 h-full w-full object-contain",
-                loaded ? "opacity-100" : "opacity-0",
-                "transition-opacity duration-300",
-              ].join(" ")}
-              src={item.mediaUrl}
-              alt={item.title}
-              width={item.mediaWidth}
-              height={item.mediaHeight}
-              loading={eager ? "eager" : "lazy"}
-              fetchPriority={eager ? "high" : "auto"}
-              decoding="async"
-              referrerPolicy="no-referrer"
-              onLoad={(e) => {
-                setLoaded(true);
-                const img = e.currentTarget;
-                if (img.naturalWidth > 0)
-                  onRatio(img.naturalHeight / img.naturalWidth);
-              }}
-            />
-          )
+        {displayUrl ? (
+          <img
+            className={[
+              "absolute inset-0 h-full w-full object-contain",
+              loaded ? "opacity-100" : "opacity-0",
+              "transition-opacity duration-300",
+            ].join(" ")}
+            src={displayUrl}
+            alt={item.title}
+            width={item.mediaWidth}
+            height={item.mediaHeight}
+            loading={eager ? "eager" : "lazy"}
+            fetchPriority={eager ? "high" : "auto"}
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onLoad={(e) => {
+              setLoaded(true);
+              const img = e.currentTarget;
+              if (img.naturalWidth > 0)
+                onRatio(img.naturalHeight / img.naturalWidth);
+            }}
+            onError={() => {
+              setFailed(true);
+              setLoaded(true);
+            }}
+          />
         ) : (
           <div className="absolute inset-0" />
         )}
