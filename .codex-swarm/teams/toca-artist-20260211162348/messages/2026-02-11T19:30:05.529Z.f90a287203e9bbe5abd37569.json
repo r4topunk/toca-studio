@@ -1,0 +1,8 @@
+{
+  "id": "f90a287203e9bbe5abd37569",
+  "team": "toca-artist-20260211162348",
+  "from": "lead",
+  "to": "a1",
+  "createdAt": "2026-02-11T19:30:05.529Z",
+  "body": "Finalize agora com implementacao minima correta: getArtistFeed + /u/[handle]/page.tsx com notFound e perfil simples + grid usando FeedClient; rode lint/build e conclua."
+}

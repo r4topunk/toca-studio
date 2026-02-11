@@ -1,0 +1,16 @@
+{
+  "id": "ef5de5358a58cc11",
+  "kind": "manual",
+  "title": "[v2] Integração + validação",
+  "description": "Workspace: /Users/r4to/Script/toca-studio\nIntegração final.\n- Depende da conclusão de [v2] Data layer + rota artista e [v2] Link de artista no modal.\n- Corrija quebras de integração/tipagem.\n- Garanta 404 para handle inexistente.\n- Rode checks finais: pnpm lint && pnpm build.\n- Rode uma validação funcional rápida (script Playwright existente ou script curto novo) para fluxo: home -> modal -> clique username -> /u/[handle].",
+  "status": "completed",
+  "deps": [
+    "c226eaa44fbc1f0b",
+    "a9e5129d6ec33f29"
+  ],
+  "assignee": "a3",
+  "createdAt": "2026-02-11T19:28:00.084Z",
+  "updatedAt": "2026-02-11T20:19:19.918Z",
+  "startedAt": "2026-02-11T20:16:38.857Z",
+  "completedAt": "2026-02-11T20:19:19.918Z"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "e967f25d536e7b61887095a6",
+  "team": "toca-artist-20260211162348",
+  "from": "a2",
+  "to": "*",
+  "createdAt": "2026-02-11T19:28:06.248Z",
+  "body": "agent_online team=toca-artist-20260211162348 agent=a2 model=gpt-5 reasoning=low"
+}

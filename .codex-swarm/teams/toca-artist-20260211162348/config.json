@@ -1,0 +1,10 @@
+{
+  "team": "toca-artist-20260211162348",
+  "createdAt": "2026-02-11T19:26:14.304Z",
+  "runner": {
+    "cmd": [
+      "node",
+      "/Users/r4to/Script/codex-subagents/scripts/swarm-runner.mjs"
+    ]
+  }
+}

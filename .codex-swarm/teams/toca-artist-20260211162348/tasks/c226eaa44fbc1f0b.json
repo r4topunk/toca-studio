@@ -1,0 +1,13 @@
+{
+  "id": "c226eaa44fbc1f0b",
+  "kind": "manual",
+  "title": "[v2] Data layer + rota artista",
+  "description": "Workspace: /Users/r4to/Script/toca-studio\nImplemente: data layer + rota /u/[handle].\n- Atualize src/lib/zora-feed.ts para expor getArtistFeed(handle) retornando { profile, items }.\n- Crie src/app/u/[handle]/page.tsx com notFound() quando profile inexistente.\n- Handle deve aceitar prefixo @ na URL e normalizar.\n- Página deve mostrar avatar/@handle + links sociais disponíveis + grid de obras.\n- Não quebrar página home.\nValide com: pnpm lint && pnpm build.",
+  "status": "completed",
+  "deps": [],
+  "assignee": "a1",
+  "createdAt": "2026-02-11T19:27:59.909Z",
+  "updatedAt": "2026-02-11T20:16:32.829Z",
+  "startedAt": "2026-02-11T19:28:06.448Z",
+  "completedAt": "2026-02-11T20:16:32.829Z"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "1976fc27f1cd6107",
+  "kind": "manual",
+  "title": "Data layer + rota /u/[handle]",
+  "description": "Workspace: /Users/r4to/Script/toca-studio\nObjetivo: criar data-layer e rota de artista /u/[handle].\nEscopo:\n1) Em src/lib/zora-feed.ts, extrair normalizacao de coin em helper compartilhado e adicionar getArtistFeed(handle: string) usando getProfileCoins({ identifier: handle, count: 24 }).\n2) getArtistFeed deve retornar { profile, items }, com profile contendo ao menos handle, avatar URL e socialAccounts.\n3) Em src/app/u/[handle]/page.tsx, buscar getArtistFeed, normalizar handle removendo prefixo @, retornar notFound() quando profile for null.\n4) Renderizar página de artista com header simples + bloco de perfil (avatar/@handle/social links) + grid de obras reutilizando componente existente disponível.\n5) Não quebrar a home existente.\nValidação:\n- pnpm lint\n- pnpm build\nEntregável: commits locais no workspace com resumo do que foi feito e resultados dos checks.",
+  "status": "failed",
+  "deps": [],
+  "assignee": "a2",
+  "createdAt": "2026-02-11T19:25:10.456Z",
+  "updatedAt": "2026-02-11T19:26:19.872Z",
+  "startedAt": "2026-02-11T19:26:16.337Z",
+  "lastError": "codex_exec_failed rc=1",
+  "failedAt": "2026-02-11T19:26:19.872Z"
+}

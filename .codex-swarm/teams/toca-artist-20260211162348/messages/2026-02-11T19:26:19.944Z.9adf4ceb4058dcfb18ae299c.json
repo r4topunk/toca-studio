@@ -1,0 +1,8 @@
+{
+  "id": "9adf4ceb4058dcfb18ae299c",
+  "team": "toca-artist-20260211162348",
+  "from": "a1",
+  "to": "*",
+  "createdAt": "2026-02-11T19:26:19.944Z",
+  "body": "task_failed team=toca-artist-20260211162348 agent=a1 task=f10d50dcf3c9b8e3 error=codex_exec_failed rc=1"
+}

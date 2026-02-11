@@ -3,7 +3,9 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import {
   Dialog,
   DialogContent,
@@ -15,6 +17,9 @@ import type { FeedItem } from "@/lib/zora-feed"
 
 type Props = {
   items: FeedItem[]
+  topSlot?: ReactNode
+  showFooter?: boolean
+  pageSize?: number
 }
 
 const MASONRY_GAP_PX = 4 // gap-1
@@ -268,7 +273,12 @@ function formatCreatedAt(createdAt?: string) {
   }).format(date)
 }
 
-export function FeedClient({ items }: Props) {
+export function FeedClient({
+  items,
+  topSlot,
+  showFooter = true,
+  pageSize: fixedPageSize,
+}: Props) {
   const [ratios, setRatios] = useState<Record<string, number>>({})
   const [selectedItem, setSelectedItem] = useState<FeedItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -291,7 +301,10 @@ export function FeedClient({ items }: Props) {
     return getColumnCount(contentWidth)
   }, [contentWidth])
 
-  const pageSize = useMemo(() => cols * 3, [cols])
+  const pageSize = useMemo(
+    () => (fixedPageSize && fixedPageSize > 0 ? fixedPageSize : cols * 3),
+    [cols, fixedPageSize]
+  )
   const [visibleCount, setVisibleCount] = useState<number>(pageSize)
 
   // Keep the current progress when resizing, but never show fewer than one page.
@@ -372,7 +385,12 @@ export function FeedClient({ items }: Props) {
       </header>
 
       <div className="w-full">
-        <main className="mt-4">
+        {topSlot ? (
+          <section className="w-full px-1 pb-1 pt-4 sm:pb-1 sm:pt-5">
+            {topSlot}
+          </section>
+        ) : null}
+        <main>
           {filtered.length === 0 ? (
             <div className="px-3 text-sm text-muted-foreground sm:px-4">
               No items yet. Add profile identifiers in{" "}
@@ -400,16 +418,18 @@ export function FeedClient({ items }: Props) {
           )}
         </main>
 
-        <footer className="mt-8 border-t px-3 py-8 text-sm text-muted-foreground sm:px-4">
-          <div className="flex flex-wrap gap-4">
-            <a href="#">Sobre</a>
-            <a href="#">Submeter artista</a>
-            <a href="#">Termos</a>
-            <a href="#">Privacidade</a>
-            <a href="#">Contato</a>
-            <a href="#">API/Docs</a>
-          </div>
-        </footer>
+        {showFooter ? (
+          <footer className="mt-8 border-t px-3 py-8 text-sm text-muted-foreground sm:px-4">
+            <div className="flex flex-wrap gap-4">
+              <a href="#">Sobre</a>
+              <a href="#">Submeter artista</a>
+              <a href="#">Termos</a>
+              <a href="#">Privacidade</a>
+              <a href="#">Contato</a>
+              <a href="#">API/Docs</a>
+            </div>
+          </footer>
+        ) : null}
       </div>
 
       <Dialog
@@ -453,9 +473,13 @@ export function FeedClient({ items }: Props) {
                   <DialogTitle>{selectedItem.title}</DialogTitle>
                   <DialogDescription>
                     por{" "}
-                    {selectedItem.creatorHandle
-                      ? `@${selectedItem.creatorHandle}`
-                      : "artista desconhecido"}
+                    {selectedItem.creatorHandle ? (
+                      <Link href={`/u/${encodeURIComponent(selectedItem.creatorHandle)}`}>
+                        @{selectedItem.creatorHandle}
+                      </Link>
+                    ) : (
+                      "artista desconhecido"
+                    )}
                   </DialogDescription>
                 </DialogHeader>
 

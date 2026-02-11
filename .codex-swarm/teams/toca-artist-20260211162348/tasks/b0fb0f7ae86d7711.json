@@ -1,0 +1,15 @@
+{
+  "id": "b0fb0f7ae86d7711",
+  "kind": "manual",
+  "title": "Integração final + validação",
+  "description": "Workspace: /Users/r4to/Script/toca-studio\nObjetivo: integrar e estabilizar a fase completa da página de artista.\nDependências: aguardar conclusão de T1 e T2.\nEscopo:\n1) Revisar integração entre home, modal e nova rota /u/[handle].\n2) Corrigir conflitos/erros de tipagem/import/export.\n3) Garantir estado 404 para handle inexistente.\n4) Rodar checks finais (pnpm lint && pnpm build) e corrigir falhas.\n5) Executar uma verificação funcional rápida via script Playwright existente (ou criar script curto em scripts/ para abrir modal e seguir link) sem mudanças destrutivas.\nEntregável: resumo final objetivo com arquivos alterados e evidências dos checks.",
+  "status": "failed",
+  "deps": [
+    "1976fc27f1cd6107",
+    "f10d50dcf3c9b8e3"
+  ],
+  "createdAt": "2026-02-11T19:25:10.662Z",
+  "updatedAt": "2026-02-11T19:27:59.819Z",
+  "lastError": "blocked_by_model_mismatch",
+  "failedAt": "2026-02-11T19:27:59.819Z"
+}

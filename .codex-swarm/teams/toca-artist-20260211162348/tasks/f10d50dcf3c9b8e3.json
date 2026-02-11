@@ -1,0 +1,14 @@
+{
+  "id": "f10d50dcf3c9b8e3",
+  "kind": "manual",
+  "title": "Modal username -> link de artista",
+  "description": "Workspace: /Users/r4to/Script/toca-studio\nObjetivo: habilitar navegação para página de artista ao clicar username no modal da obra.\nEscopo:\n1) Refatorar a galeria/masonry/modal para componente reutilizável em src/components/feed/artworks-gallery.tsx (ou caminho equivalente) sem regressões.\n2) Ajustar src/app/feed-client.tsx para consumir o componente reutilizável.\n3) No modal, quando creatorHandle existir, mostrar link interno para /u/[handle] usando next/link.\n4) Comportamento deve permanecer: clique normal abre na mesma aba; cmd/ctrl+click abre nova aba (comportamento nativo de link).\n5) Sem creatorHandle, manter texto \"artista desconhecido\" sem link.\nValidação:\n- pnpm lint\n- pnpm build\nEntregável: commits locais no workspace com resumo do que foi feito e resultados dos checks.",
+  "status": "failed",
+  "deps": [],
+  "assignee": "a1",
+  "createdAt": "2026-02-11T19:25:10.561Z",
+  "updatedAt": "2026-02-11T19:26:19.849Z",
+  "startedAt": "2026-02-11T19:26:16.339Z",
+  "lastError": "codex_exec_failed rc=1",
+  "failedAt": "2026-02-11T19:26:19.849Z"
+}

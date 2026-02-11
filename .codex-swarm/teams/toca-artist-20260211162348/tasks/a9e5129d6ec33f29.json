@@ -1,0 +1,13 @@
+{
+  "id": "a9e5129d6ec33f29",
+  "kind": "manual",
+  "title": "[v2] Link de artista no modal",
+  "description": "Workspace: /Users/r4to/Script/toca-studio\nImplemente: clique no username do modal abre perfil do artista.\n- Refatore galeria/modal para componente reutilizável se necessário.\n- Em modal, creatorHandle => link interno next/link para /u/[handle].\n- Sem creatorHandle => manter texto artista desconhecido sem link.\n- Preserve comportamento padrão de link (mesma aba; cmd/ctrl+click nova aba).\nValide com: pnpm lint && pnpm build.",
+  "status": "completed",
+  "deps": [],
+  "assignee": "a2",
+  "createdAt": "2026-02-11T19:27:59.997Z",
+  "updatedAt": "2026-02-11T19:29:32.330Z",
+  "startedAt": "2026-02-11T19:28:06.452Z",
+  "completedAt": "2026-02-11T19:29:32.330Z"
+}
