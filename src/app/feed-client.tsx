@@ -92,6 +92,23 @@ function MediaTile({
   const [failed, setFailed] = useState(false)
   const displayUrl = item.mediaPreviewUrl ?? item.mediaUrl
 
+  const bindImgRef = useCallback(
+    (img: HTMLImageElement | null) => {
+      // If the image finished loading before React hydration/event binding,
+      // onLoad may not fire and the tile can stay in skeleton state forever.
+      if (!img || !img.complete) return
+
+      if (img.naturalWidth > 0) {
+        setLoaded(true)
+        onRatio(img.naturalHeight / img.naturalWidth)
+      } else {
+        setFailed(true)
+        setLoaded(true)
+      }
+    },
+    [onRatio]
+  )
+
   // Prioritize the first row (up to 3 columns on desktop) to make loading feel ordered.
   const eager = index < 3
 
@@ -115,6 +132,7 @@ function MediaTile({
 
         {displayUrl ? (
           <img
+            ref={bindImgRef}
             className={[
               "absolute inset-0 h-full w-full object-contain",
               loaded ? "opacity-100" : "opacity-0",
