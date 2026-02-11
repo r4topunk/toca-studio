@@ -1,0 +1,16 @@
+{
+  "status": "done",
+  "mode": "full",
+  "target": 3333,
+  "pageSize": 50,
+  "concurrency": 3,
+  "profiles": 36,
+  "rounds": 12,
+  "totalCollected": 3333,
+  "newestCreatedAt": "2026-02-10T21:06:05",
+  "oldestCreatedAt": "2025-02-21T18:59:55",
+  "startedAt": "2026-02-11T23:26:22.434Z",
+  "finishedAt": "2026-02-11T23:28:13.727Z",
+  "elapsedMs": 111293,
+  "out": "/Users/r4to/Script/toca-studio/data/home-feed-cache.json"
+}

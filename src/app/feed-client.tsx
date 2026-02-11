@@ -22,6 +22,7 @@ type Props = {
   showFooter?: boolean
   showColumnsControl?: boolean
   columnsTitle?: string
+  columnsStorageKey?: string
   pageSize?: number
   remotePagination?: {
     endpoint: string
@@ -32,6 +33,17 @@ type Props = {
 }
 
 const MASONRY_GAP_PX = 4 // gap-1
+const FEED_DEBUG = process.env.NEXT_PUBLIC_FEED_DEBUG === "1"
+
+function logFeedDebug(message: string, data?: Record<string, unknown>) {
+  if (!FEED_DEBUG) return
+  const now = new Date().toISOString()
+  if (data) {
+    console.log(`[feed-client ${now}] ${message}`, data)
+    return
+  }
+  console.log(`[feed-client ${now}] ${message}`)
+}
 
 function getColumnCount(containerWidth: number, forced?: number) {
   if (typeof forced === "number" && forced > 0) return forced
@@ -78,7 +90,13 @@ function useInfiniteScroll(opts: {
     const io = new IntersectionObserver(
       (entries) => {
         const first = entries[0]
-        if (first?.isIntersecting) getNext()
+        if (first?.isIntersecting) {
+          logFeedDebug("sentinel intersected", {
+            rootMargin,
+            intersectionRatio: first.intersectionRatio,
+          })
+          getNext()
+        }
       },
       { root: null, rootMargin, threshold: 0 }
     )
@@ -291,6 +309,7 @@ export function FeedClient({
   showFooter = true,
   showColumnsControl = false,
   columnsTitle = "Selected Works",
+  columnsStorageKey = "toca:columns:default",
   pageSize: fixedPageSize,
   remotePagination,
 }: Props) {
@@ -307,6 +326,7 @@ export function FeedClient({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [columnCount, setColumnCount] = useState(3)
+  const [columnsLoaded, setColumnsLoaded] = useState(false)
 
   // This width is used only to decide how many items constitute "3 rows".
   const { ref: contentRef, width: contentWidth } = useElementWidth<HTMLDivElement>()
@@ -331,12 +351,37 @@ export function FeedClient({
   }, [])
 
   const minCols = isMobile ? 1 : 2
-  const maxCols = isMobile ? 4 : 8
+  const maxCols = 8
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setColumnCount((prev) => Math.min(maxCols, Math.max(minCols, prev)))
   }, [maxCols, minCols])
+
+  useEffect(() => {
+    if (!showColumnsControl) return
+    const raw = window.localStorage.getItem(columnsStorageKey)
+    const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
+    if (Number.isFinite(parsed)) {
+      const next = Math.min(maxCols, Math.max(minCols, parsed))
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setColumnCount(next)
+    }
+    setColumnsLoaded(true)
+  }, [columnsStorageKey, maxCols, minCols, showColumnsControl])
+
+  useEffect(() => {
+    if (!showColumnsControl || !columnsLoaded) return
+    const safe = Math.min(maxCols, Math.max(minCols, Math.round(columnCount)))
+    window.localStorage.setItem(columnsStorageKey, String(safe))
+  }, [
+    columnCount,
+    columnsLoaded,
+    columnsStorageKey,
+    maxCols,
+    minCols,
+    showColumnsControl,
+  ])
 
   const cols = useMemo(() => {
     if (!contentWidth) return minCols
@@ -350,6 +395,11 @@ export function FeedClient({
     [cols, fixedPageSize]
   )
   const [visibleCount, setVisibleCount] = useState<number>(pageSize)
+  const [queueSize, setQueueSize] = useState(0)
+  const appendedIdsRef = useRef(new Set(items.map((item) => item.id)))
+  const incomingQueueRef = useRef<FeedItem[]>([])
+  const processingQueueRef = useRef(false)
+  const requestSeqRef = useRef(0)
 
   // Keep the current progress when resizing, but never show fewer than one page.
   useEffect(() => {
@@ -388,37 +438,130 @@ export function FeedClient({
   )
 
   const loadingMoreRef = useRef(false)
+
+  useEffect(() => {
+    appendedIdsRef.current = new Set(loadedItems.map((item) => item.id))
+  }, [loadedItems])
+
+  const flushIncomingQueue = useCallback(async () => {
+    if (processingQueueRef.current) return
+    processingQueueRef.current = true
+
+    try {
+      while (incomingQueueRef.current.length > 0) {
+        const next = incomingQueueRef.current.shift()
+        setQueueSize(incomingQueueRef.current.length)
+        if (!next) break
+        if (appendedIdsRef.current.has(next.id)) continue
+        const appendStart = performance.now()
+
+        setLoadedItems((prev) => {
+          if (prev.some((item) => item.id === next.id)) return prev
+          return [...prev, next]
+        })
+        logFeedDebug("appended item", {
+          itemId: next.id,
+          queueRemaining: incomingQueueRef.current.length,
+          appendMs: Number((performance.now() - appendStart).toFixed(1)),
+        })
+        // Yield between inserts so the browser can paint progressively.
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+      }
+    } finally {
+      processingQueueRef.current = false
+    }
+  }, [])
+
   const getNext = useCallback(() => {
     if (remotePagination) {
       if (remoteLoading || !hasRemoteMore) return
       const qs = new URLSearchParams()
       qs.set("count", String(remotePagination.count))
       if (nextCursor) qs.set("after", nextCursor)
+      const reqId = ++requestSeqRef.current
+      const startedAt = performance.now()
+      const requestUrl = `${remotePagination.endpoint}?${qs.toString()}`
+      logFeedDebug("remote fetch start", {
+        reqId,
+        url: requestUrl,
+        filteredLength: filtered.length,
+        hasRemoteMore,
+      })
 
       setRemoteLoading(true)
-      fetch(`${remotePagination.endpoint}?${qs.toString()}`)
+      fetch(requestUrl)
         .then(async (res) => {
+          const responseMs = performance.now() - startedAt
+          logFeedDebug("remote fetch response", {
+            reqId,
+            ok: res.ok,
+            status: res.status,
+            responseMs: Number(responseMs.toFixed(1)),
+          })
           if (!res.ok) return null
-          return (await res.json()) as {
+          const parseStart = performance.now()
+          const parsed = (await res.json()) as {
             items?: FeedItem[]
             nextCursor?: string
             hasNextPage?: boolean
           }
+          logFeedDebug("remote fetch parse", {
+            reqId,
+            parseMs: Number((performance.now() - parseStart).toFixed(1)),
+          })
+          return parsed
         })
         .then((json) => {
           if (!json) return
           const incoming = json.items ?? []
+          const queuedBefore = incomingQueueRef.current.length
+          const processStart = performance.now()
           if (incoming.length > 0) {
-            setLoadedItems((prev) => {
-              const seen = new Set(prev.map((i) => i.id))
-              const deduped = incoming.filter((i) => !seen.has(i.id))
-              return deduped.length > 0 ? [...prev, ...deduped] : prev
+            const known = appendedIdsRef.current
+            const queued = new Set(incomingQueueRef.current.map((item) => item.id))
+            const deduped = incoming.filter(
+              (item) => !known.has(item.id) && !queued.has(item.id)
+            )
+            logFeedDebug("remote payload received", {
+              reqId,
+              incomingCount: incoming.length,
+              dedupedCount: deduped.length,
+              queuedBefore,
             })
+            if (deduped.length > 0) {
+              incomingQueueRef.current.push(...deduped)
+              setQueueSize(incomingQueueRef.current.length)
+              logFeedDebug("queue updated", {
+                reqId,
+                queueSize: incomingQueueRef.current.length,
+              })
+              void flushIncomingQueue()
+            }
           }
           setNextCursor(json.nextCursor)
           setHasRemoteMore(Boolean(json.hasNextPage && json.nextCursor))
+          logFeedDebug("remote fetch done", {
+            reqId,
+            totalMs: Number((performance.now() - startedAt).toFixed(1)),
+            processMs: Number((performance.now() - processStart).toFixed(1)),
+            nextCursor: json.nextCursor ?? null,
+            hasNextPage: Boolean(json.hasNextPage),
+          })
         })
-        .finally(() => setRemoteLoading(false))
+        .catch((err) => {
+          logFeedDebug("remote fetch error", {
+            reqId,
+            totalMs: Number((performance.now() - startedAt).toFixed(1)),
+            error: err instanceof Error ? err.message : String(err),
+          })
+        })
+        .finally(() => {
+          setRemoteLoading(false)
+          logFeedDebug("remote loading false", {
+            reqId,
+            totalMs: Number((performance.now() - startedAt).toFixed(1)),
+          })
+        })
 
       return
     }
@@ -440,14 +583,15 @@ export function FeedClient({
     remoteLoading,
     remotePagination,
     visibleCount,
+    flushIncomingQueue,
   ])
 
   const { sentinelRef } = useInfiniteScroll({
     enabled: remotePagination
-      ? filtered.length > 0 && hasRemoteMore
+      ? filtered.length > 0 && hasRemoteMore && !remoteLoading && queueSize === 0
       : filtered.length > 0 && visibleCount < filtered.length,
     getNext,
-    rootMargin: "1200px",
+    rootMargin: "400px",
   })
 
   const createdAtLabel = formatCreatedAt(selectedItem?.createdAt)

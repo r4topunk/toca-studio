@@ -1,15 +1,23 @@
 import { FeedClient } from "@/app/feed-client";
-import { FEED_PROFILES } from "@/lib/profiles";
-import { getHomeFeed } from "@/lib/zora-feed";
+import { getHybridHomeFeedPage } from "@/lib/home-feed-cache";
 
 export default async function Home() {
-  const items =
-    FEED_PROFILES.length === 0 ? [] : await getHomeFeed(FEED_PROFILES);
+  const PAGE_SIZE = 36;
+  const cached = await getHybridHomeFeedPage(undefined, PAGE_SIZE);
+  const { items, nextCursor, hasNextPage } = cached;
+
   return (
     <FeedClient
       items={items}
       showColumnsControl
       columnsTitle="Artistas brasileiros"
+      columnsStorageKey="toca:columns:home"
+      remotePagination={{
+        endpoint: "/api/home/works",
+        initialCursor: nextCursor,
+        initialHasNextPage: hasNextPage,
+        count: PAGE_SIZE,
+      }}
     />
   );
 }

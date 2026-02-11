@@ -126,6 +126,7 @@ export default async function ArtistPage({ params }: PageProps) {
       topSlot={banner}
       showColumnsControl
       columnsTitle="Obras selecionadas"
+      columnsStorageKey="toca:columns:profile"
       pageSize={18}
       remotePagination={{
         endpoint: `/api/artist/${encodeURIComponent(artist.handle)}/works`,
