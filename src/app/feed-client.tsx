@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FeedItem } from "@/lib/zora-feed";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 type Props = {
   items: FeedItem[];
@@ -220,7 +219,6 @@ function TrueMasonry({
 }
 
 export function FeedClient({ items }: Props) {
-  const [q, setQ] = useState("");
   const [ratios, setRatios] = useState<Record<string, number>>({});
 
   // This width is used only to decide how many items constitute "3 rows".
@@ -228,26 +226,14 @@ export function FeedClient({ items }: Props) {
     useElementWidth<HTMLDivElement>();
 
   const filtered = useMemo(() => {
-    const qq = q.trim().toLowerCase();
-    const base =
-      qq.length === 0
-        ? items
-        : items.filter((it) => {
-            return (
-              it.title.toLowerCase().includes(qq) ||
-              it.description.toLowerCase().includes(qq) ||
-              (it.creatorHandle ?? "").toLowerCase().includes(qq)
-            );
-          });
-
-    const next = [...base];
+    const next = [...items];
     next.sort((a, b) => {
       const at = a.createdAt ? Date.parse(a.createdAt) : 0;
       const bt = b.createdAt ? Date.parse(b.createdAt) : 0;
       return bt - at;
     });
     return next;
-  }, [items, q]);
+  }, [items]);
 
   const cols = useMemo(() => {
     if (!contentWidth) return 2;
@@ -262,12 +248,6 @@ export function FeedClient({ items }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount((prev) => Math.max(pageSize, prev));
   }, [pageSize]);
-
-  useEffect(() => {
-    // Reset paging when search changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setVisibleCount(pageSize);
-  }, [q, pageSize]);
 
   const getRatio = useCallback(
     (item: FeedItem) => {
@@ -318,29 +298,17 @@ export function FeedClient({ items }: Props) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-xl bg-foreground text-background">
-              TS
-            </div>
-            <nav className="hidden items-center gap-4 text-sm text-muted-foreground sm:flex">
-              <a className="text-foreground" href="#">
-                Explore
-              </a>
-              <a href="#">Artistas</a>
-              <a href="#">Colecoes</a>
-              <a href="#">Drops</a>
-            </nav>
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3">
+          <div className="flex items-center">
+            <a
+              href="#"
+              className="text-xl font-semibold tracking-tight text-foreground"
+            >
+              toca
+            </a>
           </div>
 
-          <div className="flex flex-1 items-center justify-end gap-3">
-            <div className="hidden w-full max-w-md sm:block">
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search (handle, title, description)"
-              />
-            </div>
+          <div className="flex items-center justify-end">
             <Button variant="secondary">Connect Wallet</Button>
           </div>
         </div>
