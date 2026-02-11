@@ -5,5 +5,11 @@ import { getHomeFeed } from "@/lib/zora-feed";
 export default async function Home() {
   const items =
     FEED_PROFILES.length === 0 ? [] : await getHomeFeed(FEED_PROFILES);
-  return <FeedClient items={items} />;
+  return (
+    <FeedClient
+      items={items}
+      showColumnsControl
+      columnsTitle="Artistas brasileiros"
+    />
+  );
 }

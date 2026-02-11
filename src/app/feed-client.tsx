@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
 import Link from "next/link"
 import {
   Dialog,
@@ -19,6 +20,8 @@ type Props = {
   items: FeedItem[]
   topSlot?: ReactNode
   showFooter?: boolean
+  showColumnsControl?: boolean
+  columnsTitle?: string
   pageSize?: number
   remotePagination?: {
     endpoint: string
@@ -30,7 +33,8 @@ type Props = {
 
 const MASONRY_GAP_PX = 4 // gap-1
 
-function getColumnCount(containerWidth: number) {
+function getColumnCount(containerWidth: number, forced?: number) {
+  if (typeof forced === "number" && forced > 0) return forced
   // 2 cols base, then 3/4/5 at Tailwind sm/lg/2xl breakpoints.
   if (containerWidth >= 1536) return 5
   if (containerWidth >= 1024) return 4
@@ -187,11 +191,13 @@ function TrueMasonry({
   getRatio,
   onRatio,
   onOpen,
+  forcedCols,
 }: {
   items: FeedItem[]
   getRatio: (item: FeedItem) => number // height / width
   onRatio: (id: string, next: number) => void
   onOpen: (item: FeedItem) => void
+  forcedCols?: number
 }) {
   const { ref, width } = useElementWidth<HTMLDivElement>()
 
@@ -205,7 +211,7 @@ function TrueMasonry({
       }
     }
 
-    const cols = getColumnCount(containerWidth)
+    const cols = getColumnCount(containerWidth, forcedCols)
     const colWidth = (containerWidth - MASONRY_GAP_PX * (cols - 1)) / cols
 
     const colHeights = new Array(cols).fill(0) as number[]
@@ -227,7 +233,7 @@ function TrueMasonry({
 
     const height = Math.max(...colHeights, 0) - MASONRY_GAP_PX
     return { colWidth, height: Math.max(0, height), pos }
-  }, [items, width, getRatio])
+  }, [forcedCols, items, width, getRatio])
 
   return (
     <div ref={ref} className="w-full px-1">
@@ -283,6 +289,8 @@ export function FeedClient({
   items,
   topSlot,
   showFooter = true,
+  showColumnsControl = false,
+  columnsTitle = "Selected Works",
   pageSize: fixedPageSize,
   remotePagination,
 }: Props) {
@@ -297,6 +305,8 @@ export function FeedClient({
   const [ratios, setRatios] = useState<Record<string, number>>({})
   const [selectedItem, setSelectedItem] = useState<FeedItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [columnCount, setColumnCount] = useState(3)
 
   // This width is used only to decide how many items constitute "3 rows".
   const { ref: contentRef, width: contentWidth } = useElementWidth<HTMLDivElement>()
@@ -312,10 +322,28 @@ export function FeedClient({
     return next
   }, [items, loadedItems, remotePagination])
 
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)")
+    const sync = () => setIsMobile(mq.matches)
+    sync()
+    mq.addEventListener("change", sync)
+    return () => mq.removeEventListener("change", sync)
+  }, [])
+
+  const minCols = isMobile ? 1 : 2
+  const maxCols = isMobile ? 4 : 8
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setColumnCount((prev) => Math.min(maxCols, Math.max(minCols, prev)))
+  }, [maxCols, minCols])
+
   const cols = useMemo(() => {
-    if (!contentWidth) return 2
-    return getColumnCount(contentWidth)
-  }, [contentWidth])
+    if (!contentWidth) return minCols
+    return showColumnsControl
+      ? getColumnCount(contentWidth, columnCount)
+      : getColumnCount(contentWidth)
+  }, [columnCount, contentWidth, minCols, showColumnsControl])
 
   const pageSize = useMemo(
     () => (fixedPageSize && fixedPageSize > 0 ? fixedPageSize : cols * 3),
@@ -460,10 +488,40 @@ export function FeedClient({
             </div>
           ) : (
             <div ref={contentRef}>
+              {showColumnsControl ? (
+                <section className="border-y border-zinc-300 bg-white px-4 py-3 sm:px-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div
+                      className="text-xs uppercase tracking-[0.18em] text-zinc-500"
+                      style={{ fontFamily: "ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
+                    >
+                      {columnsTitle}
+                    </div>
+                    <div className="flex min-w-[200px] items-center gap-3 sm:min-w-[280px]">
+                      <label className="whitespace-nowrap text-xs text-zinc-600">
+                        Colunas:
+                      </label>
+                      <Slider
+                        min={minCols}
+                        max={maxCols}
+                        step={1}
+                        value={[columnCount]}
+                        onValueChange={(value) => setColumnCount(value[0] ?? minCols)}
+                        className="w-full"
+                        aria-label="Numero de colunas"
+                      />
+                      <span className="min-w-6 whitespace-nowrap rounded border border-zinc-300 px-1.5 py-0.5 text-center text-xs text-zinc-700">
+                        {columnCount}
+                      </span>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
               <TrueMasonry
                 items={page}
                 getRatio={getRatio}
                 onRatio={onRatio}
+                forcedCols={showColumnsControl ? columnCount : undefined}
                 onOpen={(item) => {
                   setSelectedItem(item)
                   setDialogOpen(true)
